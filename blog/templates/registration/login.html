@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 2rem auto; padding: 2rem; border: 1px solid #ccc; border-radius: 8px;">
+    <h2>Login</h2>
+    {% if form.non_field_errors %}
+        <div style="color: red; margin-bottom: 1rem;">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        <div style="margin-bottom: 1rem;">
+            <label for="id_username">Username:</label><br>
+            <input type="text" id="id_username" name="username" required style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;">
+            {% if form.username.errors %}
+                <span style="color: red;">{{ form.username.errors }}</span>
+            {% endif %}
+        </div>
+        
+        <div style="margin-bottom: 1rem;">
+            <label for="id_password">Password:</label><br>
+            <input type="password" id="id_password" name="password" required style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;">
+            {% if form.password.errors %}
+                <span style="color: red;">{{ form.password.errors }}</span>
+            {% endif %}
+        </div>
+        
+        <button type="submit" style="background-color: #007bff; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; width: 100%;">Login</button>
+    </form>
+</div>
+{% endblock %}

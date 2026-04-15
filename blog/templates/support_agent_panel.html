@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Support Agent Panel</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <style>
+      /* Reset and base styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #f5f5f5;
+        color: #333;
+      }
+
+      /* Main container layout */
+      .container {
+        display: flex;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* LEFT SIDEBAR - Independent scroll */
+      .sidebar {
+        width: 300px;
+        background: white;
+        border-right: 1px solid #ddd;
+        overflow-y: auto;
+        overflow-x: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        flex-shrink: 0;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+      }
+
+      /* RIGHT MAIN AREA */
+      .main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-width: 0; /* Allow flex to work properly */
+      }
+
+      /* Fixed header */
+      .header {
+        background: #2c3e50;
+        color: white;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        flex-shrink: 0; /* Header doesn't grow/shrink */
+        position: relative;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+
+      /* Chat area with independent scroll for messages and fixed input */
+      .chat-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0; /* CRITICAL! Allows flex to shrink properly */
+      }
+
+      /* Messages container - scrollable */
+      .messages {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 20px;
+        background: white;
+        min-height: 0; /* Allow flex to shrink properly */
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+      }
+
+      /* Individual message */
+      .message {
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+        animation: slideIn 0.3s ease-out;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .message.agent {
+        align-items: flex-start;
+      }
+      .message.user {
+        align-items: flex-end;
+      }
+
+      .message-content {
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 8px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+
+      .message.agent .message-content {
+        background: #3498db;
+        color: white;
+        border-radius: 8px 8px 8px 0;
+      }
+
+      .message.user .message-content {
+        background: #ecf0f1;
+        color: #333;
+        border-radius: 8px 8px 0 8px;
+      }
+
+      .timestamp {
+        font-size: 12px;
+        color: #999;
+        margin-top: 4px;
+      }
+
+      /* Input area - FIXED at bottom, doesn't scroll */
+      .input-area {
+        padding: 20px;
+        background: white;
+        border-top: 1px solid #ddd;
+        display: flex;
+        gap: 10px;
+        flex-shrink: 0; /* Prevents shrinking */
+        min-height: 100px;
+      }
+
+      .input-area textarea {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: 14px;
+        resize: none;
+        min-height: 60px;
+        max-height: 120px;
+        overflow-y: auto;
+      }
+
+      .input-area button {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.3s;
+        align-self: flex-end;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .input-area button:hover {
+        background: #2980b9;
+      }
+
+      .input-area button:active {
+        background: #1f618d;
+        transform: scale(0.98);
+      }
+
+      /* Sidebar user items */
+      .user-item {
+        padding: 15px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        transition: background 0.2s;
+        user-select: none;
+      }
+
+      .user-item:hover {
+        background: #f9f9f9;
+      }
+
+      .user-item.active {
+        background: #e8f4f8;
+        border-left: 3px solid #3498db;
+        padding-left: 12px;
+      }
+
+      .user-item.has-unread {
+        background-color: #fff3cd;
+        border-left: 3px solid #ffc107;
+        padding-left: 12px;
+        font-weight: 500;
+      }
+
+      .user-item.active {
+        background: #4facfe; /* ko'k fon */
+        color: white;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(79, 172, 254, 0.35);
+        border-left: 4px solid #1f7ae0; /* ko'k chiziq */
+      }
+
+      .user-item.active.has-unread {
+        background: #4facfe;
+        border-left: 4px solid #1f7ae0;
+      }
+
+      .user-item.active .user-preview {
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .user-item.has-unread:hover {
+        background-color: #ffe8a0;
+      }
+
+      .user-name {
+        font-weight: 600;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .user-preview {
+        font-size: 13px;
+        color: #666;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .unread-badge {
+        display: inline-block;
+        background: #e74c3c;
+        color: white;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-left: 5px;
+        flex-shrink: 0;
+      }
+
+      /* Placeholder for empty state */
+      .placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #999;
+        font-size: 16px;
+      }
+
+      /* Logout button positioning */
+      .logout-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        padding: 8px 16px;
+        background: #e74c3c;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 14px;
+        transition: background 0.3s;
+      }
+
+      .logout-btn:hover {
+        background: #c0392b;
+      }
+
+      /* Responsive design */
+      @media (max-width: 768px) {
+        .sidebar {
+          width: 250px;
+        }
+
+        .message-content {
+          max-width: 85%;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .container {
+          flex-direction: column;
+        }
+
+        .sidebar {
+          width: 100%;
+          height: 150px;
+          border-right: none;
+          border-bottom: 1px solid #ddd;
+        }
+
+        .main {
+          flex: 1;
+        }
+
+        .message-content {
+          max-width: 90%;
+        }
+
+        .input-area {
+          flex-wrap: wrap;
+        }
+
+        .input-area textarea {
+          width: 100%;
+          margin-bottom: 10px;
+        }
+
+        .input-area button {
+          align-self: auto;
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- LEFT SIDEBAR: Users/Tickets list (scrollable independently) -->
+      <div class="sidebar" id="sidebar">
+        {% if users_data %}
+          {% for item in users_data %}
+            <div class="user-item{% if item.unread_count %} has-unread{% endif %}"
+                data-ticket-id="{{ item.ticket.id }}">
+              <div class="user-name">
+                {% if item.user.username %}
+                  {{ item.user.username }}
+                  {% if item.phone %}<span style="font-size: 12px; color: #666; margin-left: 8px;">({{ item.phone }})</span>{% endif %}
+                {% else %}
+                  {{ item.phone }}
+                {% endif %}
+                {% if item.unread_count %}
+                  <span class="unread-badge">{{ item.unread_count }}</span>
+                {% endif %}
+              </div>
+              <div class="user-preview">{{ item.latest_message }}</div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div style="padding: 20px; color: #999">No support tickets yet</div>
+        {% endif %}
+      </div>
+
+      <!-- RIGHT MAIN AREA: Header + Chat + Input -->
+      <div class="main">
+        <!-- FIXED HEADER -->
+        <div class="header">
+          <h1>Support Agent Panel</h1>
+          <a href="/support/agent/logout/" class="logout-btn">Logout</a>
+        </div>
+
+        <!-- CHAT AREA: Messages (scrollable) + Input (fixed at bottom) -->
+        <div
+          id="chat-container"
+          style="
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+          "
+        >
+          <div class="placeholder">
+            Select a conversation or wait for incoming messages
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = "/support/agent/api";
+      let currentTicketId = null;
+      let displayedMessageIds = new Set(); // Track which messages we've already shown
+      let isLoadingMessages = false;
+      let isLoadingSidebar = false;
+      let chatAreasInitialized = false;
+      let lastUnreadCount = 0; // Track if there are new unread messages
+
+      function getCSRFToken() {
+        const name = "csrftoken";
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+          const cookies = document.cookie.split(";");
+          for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === name + "=") {
+              cookieValue = decodeURIComponent(
+                cookie.substring(name.length + 1),
+              );
+              break;
+            }
+          }
+        }
+        if (cookieValue) return cookieValue;
+
+        // fallback to server-rendered meta tag (in case cookie isn't available yet)
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) return meta.content || "";
+
+        return "";
+      }
+
+      // Fetch and update sidebar tickets list
+      async function updateSidebar() {
+        if (isLoadingSidebar) return;
+
+        isLoadingSidebar = true;
+        try {
+          const response = await fetch(`${API_BASE}/tickets/`);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+
+          const sidebar = document.getElementById("sidebar");
+          if (!sidebar) return;
+
+          // Calculate total unread messages
+          const totalUnread = data.tickets.reduce(
+            (sum, ticket) => sum + ticket.unread_count,
+            0,
+          );
+
+          // Play notification sound if new unread messages arrived
+          if (totalUnread > lastUnreadCount) {
+            playNotificationSound();
+          }
+          lastUnreadCount = totalUnread;
+
+          // sort tickets by latest message time descending so that most
+          // recently-active conversations float to the top of the list.
+          data.tickets.sort((a, b) => {
+            const ta = a.latest_time ? new Date(a.latest_time) : 0;
+            const tb = b.latest_time ? new Date(b.latest_time) : 0;
+            return tb - ta;
+          });
+
+          // rebuild sidebar from scratch rather than trying to patch
+          // individual items. this makes it easy to maintain ordering
+          // and to scroll new conversations into view.
+          const activeId = currentTicketId;
+          sidebar.innerHTML = "";
+
+          data.tickets.forEach((ticket) => {
+            const userItem = document.createElement("div");
+            userItem.className = "user-item";
+            userItem.setAttribute("data-ticket-id", ticket.id);
+
+            userItem.innerHTML = `
+                        <div class="user-name">
+                            ${escapeHtml(ticket.username)}
+                            ${ticket.unread_count > 0 ? `<span class="unread-badge">${ticket.unread_count}</span>` : ""}
+                        </div>
+                        <div class="user-preview">${escapeHtml(ticket.latest_message)}</div>
+                    `;
+
+            if (ticket.unread_count > 0) {
+              userItem.classList.add("has-unread");
+            }
+
+            if (ticket.id === activeId) {
+              userItem.classList.add("active");
+            }
+
+            // clicking a rebuilt item still works because we delegate
+            // on the parent later
+            sidebar.appendChild(userItem);
+          });
+
+          // if there's a new unread ticket at the top, make sure it's
+          // visible even if sidebar is scrolled down
+          if (sidebar.firstElementChild) {
+            sidebar.firstElementChild.scrollIntoView({ block: "start", behavior: "smooth" });
+          }
+        } catch (err) {
+          console.error("Error updating sidebar:", err);
+        } finally {
+          isLoadingSidebar = false;
+        }
+      }
+
+      function playNotificationSound() {
+        // Create simple beep sound using Web Audio API (no external file needed)
+        try {
+          const audioContext = new (
+            window.AudioContext || window.webkitAudioContext
+          )();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+
+          // Beep parameters: frequency, duration
+          oscillator.frequency.value = 800; // Hz
+          oscillator.type = "sine";
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(
+            0.01,
+            audioContext.currentTime + 0.5,
+          );
+
+          oscillator.start(audioContext.currentTime);
+          oscillator.stop(audioContext.currentTime + 0.5);
+        } catch (err) {
+          console.error("Could not play sound:", err);
+        }
+      }
+
+      function selectTicket(ticketId, el) {
+        currentTicketId = ticketId;
+        displayedMessageIds.clear();
+        chatAreasInitialized = false;
+
+        // hammasidan active'ni olib tashlaymiz
+        document
+          .querySelectorAll(".user-item")
+          .forEach((x) => x.classList.remove("active"));
+
+        // bosilgan elementga active qo'yamiz
+        if (el) {
+          el.classList.add("active");
+          // Update header with user info
+          const userName = el.querySelector(".user-name").innerText.split("(")[0].trim();
+          const userInfo = el.querySelector(".user-name").innerHTML;
+          const headerH1 = document.querySelector(".header h1");
+          if (headerH1) {
+            headerH1.innerHTML = `Conversation with <strong>${userInfo}</strong>`;
+          }
+        }
+
+        initializeChatUI(ticketId);
+        fetchConversationMessages(ticketId);
+      }
+      // Initialize the chat UI structure once (don't recreate on every refresh)
+      function initializeChatUI(ticketId) {
+        if (chatAreasInitialized) return;
+
+        const chatContainer = document.getElementById("chat-container");
+        chatContainer.innerHTML = `
+                      <div class="chat-area">
+                          <div class="messages" id="messages"></div>
+                          <div class="input-area">
+                              <textarea id="reply-text" placeholder="Type your reply..."></textarea>
+                              <button onclick="sendReply(${ticketId})">Send</button>
+                          </div>
+                      </div>
+                  `;
+        chatAreasInitialized = true;
+      }
+
+      // Fetch only the messages (don't recreate the UI)
+      async function fetchConversationMessages(ticketId) {
+        if (isLoadingMessages) return;
+
+        isLoadingMessages = true;
+        try {
+          const response = await fetch(`${API_BASE}/conversation/${ticketId}/`);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+
+          const messagesDiv = document.getElementById("messages");
+          if (!messagesDiv) {
+            console.warn("Messages container not found");
+            isLoadingMessages = false;
+            return;
+          }
+
+          // First load: show all messages in chronological order
+          if (displayedMessageIds.size === 0) {
+            messagesDiv.innerHTML = ""; // Clear only on first load
+
+            // Sort messages chronologically (oldest first, newest last)
+            const sortedMessages = [...data.messages].sort((a, b) => {
+              return new Date(a.created_at) - new Date(b.created_at);
+            });
+
+            sortedMessages.forEach((msg) => {
+              const msgId = msg.id || `${msg.sender}-${msg.created_at}`;
+              displayedMessageIds.add(msgId);
+
+              const msgDiv = document.createElement("div");
+              msgDiv.className = `message ${msg.sender === "support" ? "agent" : "user"}`;
+              msgDiv.setAttribute("data-message-id", msgId);
+              msgDiv.innerHTML = `
+                                  <div class="message-content">${escapeHtml(msg.content)}</div>
+                                  <div class="timestamp">${new Date(msg.created_at).toLocaleTimeString()}</div>
+                              `;
+              messagesDiv.appendChild(msgDiv);
+            });
+          } else {
+            // Subsequent polls: add only NEW messages (sorted chronologically)
+            const sortedMessages = [...data.messages].sort((a, b) => {
+              return new Date(a.created_at) - new Date(b.created_at);
+            });
+
+            sortedMessages.forEach((msg) => {
+              const msgId = msg.id || `${msg.sender}-${msg.created_at}`;
+
+              // Skip if we already displayed this message
+              if (displayedMessageIds.has(msgId)) {
+                return;
+              }
+
+              displayedMessageIds.add(msgId);
+
+              const msgDiv = document.createElement("div");
+              msgDiv.className = `message ${msg.sender === "support" ? "agent" : "user"}`;
+              msgDiv.setAttribute("data-message-id", msgId);
+              msgDiv.innerHTML = `
+                                  <div class="message-content">${escapeHtml(msg.content)}</div>
+                                  <div class="timestamp">${new Date(msg.created_at).toLocaleTimeString()}</div>
+                              `;
+              messagesDiv.appendChild(msgDiv);
+            });
+          }
+
+          // Always scroll to bottom after updating messages
+          // Increase timeout if scroll doesn't work
+          setTimeout(() => {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+          }, 50);
+        } catch (err) {
+          console.error("Error fetching messages:", err);
+        } finally {
+          isLoadingMessages = false;
+        }
+      }
+
+      async function sendReply(ticketId) {
+        const textarea = document.getElementById("reply-text");
+        const text = textarea?.value.trim();
+        if (!text) return;
+
+        try {
+          const csrfToken = getCSRFToken();
+          if (!csrfToken) {
+            console.error("CSRF token missing from cookie");
+            throw new Error("Missing CSRF token");
+          }
+          console.log("CSRF token", csrfToken);
+          const response = await fetch(`/support/agent/reply/${ticketId}/`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrfToken,
+            },
+            body: JSON.stringify({ message: text }),
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+          // Clear textarea after successful send
+          textarea.value = "";
+
+          // Reset displayedMessageIds to fetch all messages again (includes our new message)
+          displayedMessageIds.clear();
+
+          // Fetch updated messages (including the one we just sent)
+          await fetchConversationMessages(ticketId);
+        } catch (err) {
+          console.error("Error sending reply:", err);
+          alert("Failed to send reply");
+        }
+      }
+
+      function escapeHtml(unsafe) {
+        return unsafe
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      // Setup websocket connection for real-time updates
+      (function initWebSocket() {
+        const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = `${wsScheme}://${window.location.host}/ws/notify/`;
+
+        let socket = new WebSocket(wsUrl);
+
+        socket.addEventListener('open', () => {
+          console.log('Support agent websocket connected to', wsUrl);
+        });
+
+        socket.addEventListener('message', (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            if (!payload?.event) return;
+
+            if (payload.event === 'support_message') {
+              if (currentTicketId && payload.ticket_id === currentTicketId) {
+                fetchConversationMessages(currentTicketId);
+              }
+              updateSidebar();
+            }
+
+            if (payload.event === 'booking_updated') {
+              // optional: show counts or flash in header
+              updateSidebar();
+            }
+
+            if (payload.event === 'ticket_config_updated') {
+              updateSidebar();
+            }
+          } catch (err) {
+            console.error('Error parsing websocket message', err);
+          }
+        });
+
+        socket.addEventListener('close', () => {
+          console.warn('Support agent websocket disconnected, reconnecting in 1s');
+          setTimeout(initWebSocket, 1000);
+        });
+
+        socket.addEventListener('error', (err) => {
+          console.error('Support agent websocket error', err);
+          socket.close();
+        });
+      })();
+
+      // Poll for new messages and sidebar updates every 3 seconds
+      setInterval(() => {
+        // Always update sidebar to show new tickets and unread counts
+        updateSidebar();
+
+        // Update current conversation if one is selected
+        if (currentTicketId) {
+          fetchConversationMessages(currentTicketId);
+        }
+      }, 3000);
+
+      // Initial sidebar update on page load
+      updateSidebar();
+
+      // Event delegation for sidebar clicks (works for dynamically updated items)
+      document.getElementById("sidebar").addEventListener("click", (e) => {
+        const userItem = e.target.closest(".user-item");
+        if (!userItem) return;
+
+        const ticketId = parseInt(userItem.getAttribute("data-ticket-id"), 10);
+        selectTicket(ticketId, userItem);
+      });
+    </script>
+  </body>
+</html>
+
+@login_required @require_GET def api_conversation(request, ticket_id): #
+Conversation messages'ni JSON sifatida return qilish pass @login_required
+@require_POST def api_reply(request, ticket_id): # Agent javob yuborish pass

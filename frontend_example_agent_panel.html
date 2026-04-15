@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArenaGo Support - Agent Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+        }
+
+        .status-indicator.connected {
+            background: #28a745;
+        }
+
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .tickets-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .ticket-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .ticket-item:hover {
+            background: #f9f9f9;
+        }
+
+        .ticket-item.active {
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+        }
+
+        .ticket-title {
+            font-weight: 500;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        .ticket-meta {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .unread-badge {
+            display: inline-block;
+            background: #dc3545;
+            color: white;
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ticket-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .ticket-header h2 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .ticket-info {
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+
+        .message.agent {
+            background: #e7f3ff;
+            margin-left: 40px;
+        }
+
+        .message-header {
+            font-weight: 500;
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .message-time {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .reply-box {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+
+        .reply-box textarea {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .reply-box button {
+            padding: 10px 20px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .reply-box button:hover {
+            background: #0052a3;
+        }
+
+        .reply-box button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .empty-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            color: #999;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎫 ArenaGo Support Panel</h1>
+            <div class="status">
+                <div class="status-item">
+                    <span class="status-indicator connected" id="api-status"></span>
+                    <span id="api-text">API Connected</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-indicator" id="ws-status"></span>
+                    <span id="ws-text">WebSocket: Connecting...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main">
+            <!-- Sidebar: Tickets List -->
+            <div class="sidebar">
+                <div style="padding: 12px; border-bottom: 1px solid #eee; font-weight: 500;">
+                    Tiketlar (<span id="ticket-count">0</span>)
+                </div>
+                <div class="tickets-list" id="tickets-list">
+                    <div class="empty-state">Tiketlar yo'q</div>
+                </div>
+            </div>
+
+            <!-- Content: Ticket Detail -->
+            <div class="content">
+                <div id="app-content">
+                    <div class="empty-state">Tiketni tanlang</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // ====================================================================
+        // CONFIGURATION
+        // ====================================================================
+
+        const CONFIG = {
+            API_BASE: 'http://localhost:8000',
+            API_VERSION: '1.0',
+            WS_URL: 'ws://localhost:8000/ws/notify/'
+        };
+
+        // ====================================================================
+        // API CLIENT
+        // ====================================================================
+
+        class ArenaGoAPI {
+            constructor(baseURL, apiVersion) {
+                this.baseURL = baseURL;
+                this.apiVersion = apiVersion;
+            }
+
+            getHeaders() {
+                return {
+                    'Content-Type': 'application/json',
+                    'Accept': `application/json; version=${this.apiVersion}`
+                };
+            }
+
+            async request(method, path, body = null) {
+                const url = `${this.baseURL}${path}`;
+                const options = {
+                    method,
+                    headers: this.getHeaders(),
+                    credentials: 'include' // Include cookies (CSRF token)
+                };
+
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                try {
+                    const response = await fetch(url, options);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    
+                    return await response.json();
+                } catch (error) {
+                    console.error(`API Error: ${method} ${path}`, error);
+                    throw error;
+                }
+            }
+
+            // Support Agent Endpoints
+            async getTickets(limit = 50, offset = 0) {
+                return this.request('GET', `/api/v1/support/agent/tickets/?limit=${limit}&offset=${offset}`);
+            }
+
+            async getTicketDetail(ticketId) {
+                return this.request('GET', `/api/v1/support/agent/tickets/${ticketId}/`);
+            }
+
+            async replyToTicket(ticketId, message) {
+                return this.request('POST', `/api/v1/support/agent/tickets/${ticketId}/reply/`, {
+                    message
+                });
+            }
+        }
+
+        // ====================================================================
+        // WEBSOCKET CLIENT
+        // ====================================================================
+
+        class WebSocketClient {
+            constructor(url) {
+                this.url = url;
+                this.ws = null;
+                this.listeners = [];
+                this.reconnectInterval = 3000;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 5;
+            }
+
+            connect() {
+                try {
+                    this.ws = new WebSocket(this.url);
+                    
+                    this.ws.onopen = () => {
+                        console.log('✅ WebSocket Connected');
+                        this.updateStatus(true);
+                        this.reconnectAttempts = 0;
+                        this.startHeartbeat();
+                    };
+
+                    this.ws.onmessage = (event) => {
+                        const data = JSON.parse(event.data);
+                        console.log('📨 WebSocket Message:', data);
+                        this.notifyListeners(data);
+                    };
+
+                    this.ws.onerror = (error) => {
+                        console.error('❌ WebSocket Error:', error);
+                        this.updateStatus(false);
+                    };
+
+                    this.ws.onclose = () => {
+                        console.log('❌ WebSocket Disconnected');
+                        this.updateStatus(false);
+                        this.attemptReconnect();
+                    };
+                } catch (error) {
+                    console.error('Failed to connect WebSocket:', error);
+                    this.attemptReconnect();
+                }
+            }
+
+            attemptReconnect() {
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    console.log(`Reconnecting... (Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+                    setTimeout(() => this.connect(), this.reconnectInterval);
+                } else {
+                    console.error('Failed to reconnect after max attempts');
+                }
+            }
+
+            startHeartbeat() {
+                setInterval(() => {
+                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        this.ws.send(JSON.stringify({ type: 'ping' }));
+                    }
+                }, 30000);
+            }
+
+            send(data) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify(data));
+                }
+            }
+
+            subscribe(callback) {
+                this.listeners.push(callback);
+            }
+
+            notifyListeners(data) {
+                this.listeners.forEach(callback => callback(data));
+            }
+
+            updateStatus(connected) {
+                const indicator = document.getElementById('ws-status');
+                const text = document.getElementById('ws-text');
+                
+                if (connected) {
+                    indicator.classList.add('connected');
+                    text.textContent = 'WebSocket: Connected ✅';
+                } else {
+                    indicator.classList.remove('connected');
+                    text.textContent = 'WebSocket: Disconnected ❌';
+                }
+            }
+        }
+
+        // ====================================================================
+        // UI MANAGER
+        // ====================================================================
+
+        class UIManager {
+            constructor(api, ws) {
+                this.api = api;
+                this.ws = ws;
+                this.currentTicketId = null;
+                this.tickets = [];
+            }
+
+            async init() {
+                await this.loadTickets();
+                this.setupWebSocketListener();
+                this.setupEventListeners();
+            }
+
+            async loadTickets() {
+                try {
+                    const data = await this.api.getTickets();
+                    this.tickets = data.results || [];
+                    this.renderTicketsList();
+                } catch (error) {
+                    this.showError('Tiketlar yuklanishida xato');
+                }
+            }
+
+            renderTicketsList() {
+                const list = document.getElementById('tickets-list');
+                const count = document.getElementById('ticket-count');
+
+                count.textContent = this.tickets.length;
+
+                if (this.tickets.length === 0) {
+                    list.innerHTML = '<div class="empty-state">Tiketlar yo\'q</div>';
+                    return;
+                }
+
+                list.innerHTML = this.tickets.map(ticket => `
+                    <div class="ticket-item ${ticket.id === this.currentTicketId ? 'active' : ''}" 
+                         onclick="ui.selectTicket(${ticket.id})">
+                        <div class="ticket-title">
+                            ${this.escapeHtml(ticket.title)}
+                            ${ticket.unread_count > 0 ? `<span class="unread-badge">${ticket.unread_count}</span>` : ''}
+                        </div>
+                        <div class="ticket-meta">
+                            ${this.escapeHtml(ticket.user_name)} • ${this.formatTime(ticket.created_at)}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            async selectTicket(ticketId) {
+                this.currentTicketId = ticketId;
+                this.renderTicketsList();
+
+                try {
+                    const ticket = await this.api.getTicketDetail(ticketId);
+                    this.renderTicketDetail(ticket);
+                } catch (error) {
+                    this.showError('Tiket yuklanishida xato');
+                }
+            }
+
+            renderTicketDetail(ticket) {
+                const content = document.getElementById('app-content');
+
+                content.innerHTML = `
+                    <div class="ticket-header">
+                        <h2>${this.escapeHtml(ticket.title)}</h2>
+                        <div class="ticket-info">
+                            <div><strong>Status:</strong> ${ticket.status}</div>
+                            <div><strong>Foydalanuvchi:</strong> ${this.escapeHtml(ticket.user_name)}</div>
+                            <div><strong>Telefon:</strong> ${this.escapeHtml(ticket.phone)}</div>
+                        </div>
+                    </div>
+
+                    <div class="messages" id="messages">
+                        ${(ticket.messages || []).map(msg => `
+                            <div class="message ${msg.user_name === 'Agent1' ? 'agent' : ''}">
+                                <div class="message-header">${this.escapeHtml(msg.user_name)}</div>
+                                <div>${this.escapeHtml(msg.text)}</div>
+                                <div class="message-time">${this.formatTime(msg.created_at)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="reply-box">
+                        <textarea id="reply-input" placeholder="Javob yozing..."></textarea>
+                        <button onclick="ui.sendReply()">Yuborish</button>
+                    </div>
+                `;
+
+                // Auto-scroll to bottom
+                setTimeout(() => {
+                    const messages = document.getElementById('messages');
+                    messages.scrollTop = messages.scrollHeight;
+                }, 0);
+            }
+
+            async sendReply() {
+                const input = document.getElementById('reply-input');
+                const message = input.value.trim();
+
+                if (!message) return;
+
+                try {
+                    await this.api.replyToTicket(this.currentTicketId, message);
+                    input.value = '';
+                    this.showSuccess('Javob yuborildi');
+
+                    // Reload ticket
+                    await this.selectTicket(this.currentTicketId);
+                } catch (error) {
+                    this.showError('Javob yuborishida xato');
+                }
+            }
+
+            setupWebSocketListener() {
+                this.ws.subscribe((data) => {
+                    if (data.type === 'ticket_created' || data.type === 'message_created') {
+                        // Reload tickets
+                        this.loadTickets();
+
+                        // If current ticket updated, reload it
+                        if (this.currentTicketId && data.ticket_id === this.currentTicketId) {
+                            this.selectTicket(this.currentTicketId);
+                        }
+                    }
+                });
+            }
+
+            setupEventListeners() {
+                // Auto-refresh tickets every 10 seconds
+                setInterval(() => this.loadTickets(), 10000);
+            }
+
+            showError(message) {
+                const alert = document.createElement('div');
+                alert.className = 'error';
+                alert.textContent = message;
+                document.body.insertBefore(alert, document.body.firstChild);
+                setTimeout(() => alert.remove(), 5000);
+            }
+
+            showSuccess(message) {
+                const alert = document.createElement('div');
+                alert.className = 'success';
+                alert.textContent = message;
+                document.body.insertBefore(alert, document.body.firstChild);
+                setTimeout(() => alert.remove(), 3000);
+            }
+
+            escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            formatTime(isoString) {
+                const date = new Date(isoString);
+                return date.toLocaleString('uz-UZ');
+            }
+        }
+
+        // ====================================================================
+        // INITIALIZATION
+        // ====================================================================
+
+        const api = new ArenaGoAPI(CONFIG.API_BASE, CONFIG.API_VERSION);
+        const ws = new WebSocketClient(CONFIG.WS_URL);
+        const ui = new UIManager(api, ws);
+
+        // Start when page loads
+        window.addEventListener('load', () => {
+            ws.connect();
+            ui.init();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+# ============================================================================
+# ArenaGo - Secure Production Requirements
+# ============================================================================
+
+# Core Framework
+Django==6.0.2
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+django-channels==4.0.0
+daphne==4.0.0
+
+# Authentication & Security
+djangorestframework-simplejwt==5.3.2
+django-axes==6.1.1  # Brute-force protection
+django-jazzmin==3.0.0  # Admin UI
+
+# Database
+psycopg2-binary==2.9.9  # PostgreSQL adapter
+django-redis==5.4.0  # Redis caching
+
+# Production Server
+gunicorn==21.2.0
+whitenoise==6.6.0
+
+# Email
+django-anymail==10.0  # Multi-provider email
+
+# File Storage (optional)
+boto3==1.28.85  # AWS S3
+django-storages==1.14.2
+
+# Monitoring & Logging
+sentry-sdk==1.39.1  # Error tracking
+python-json-logger==2.0.7  # JSON logging
+django-extensions==3.2.3
+
+# Security Headers & Validation
+django-csp==3.7  # Content Security Policy
+django-ratelimit==4.1.0  # Advanced rate limiting
+
+# Input Validation
+django-crispy-forms==2.1  # Form validation
+crispy-bootstrap5==0.7
+
+# API Documentation
+drf-spectacular==0.26.5  # OpenAPI schema generation
+drf-yasg==1.21.7  # Swagger UI
+
+# Testing
+pytest==7.4.3
+pytest-django==4.7.0
+pytest-cov==4.1.0
+factory-boy==3.3.0
+
+# Code Quality
+black==23.12.1
+flake8==6.1.0
+isort==5.13.2
+django-debug-toolbar==4.2.0  # Development only
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Additional Utilities
+requests==2.31.0
+Pillow==10.1.0  # Image processing
+celery==5.3.4  # Async tasks (optional)
+redis==5.0.1
+
+# ============================================================================
+# Development Dependencies (separate from production)
+# ============================================================================
+# Install with: pip install -r requirements-dev.txt
+
+# pytest-django
+# black
+# flake8
+# isort
+# coverage
+# django-debug-toolbar
+# factory-boy

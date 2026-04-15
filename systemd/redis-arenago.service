@@ -1,0 +1,56 @@
+# Production systemd service file for Redis Channels Layer
+# Install to: /etc/systemd/system/redis-arenago.service
+# Enable: sudo systemctl enable redis-arenago
+# Start: sudo systemctl start redis-arenago
+# Monitor: sudo journalctl -fu redis-arenago
+
+[Unit]
+Description=ArenaGo Redis Server (Channels Layer + Cache)
+After=network.target
+Wants=network.target
+
+[Service]
+Type=notify
+User=redis
+Group=redis
+RuntimeDirectory=redis
+StateDirectory=redis
+
+# Use custom Redis config
+ExecStart=/usr/bin/redis-server /etc/redis/arenago.conf
+ExecStop=/bin/kill -s TERM $MAINPID
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+StartLimitInterval=60s
+StartLimitBurst=3
+
+# Socket activation (for systemd socket)
+NotifyAccess=main
+Type=notify
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=redis-arenago
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=32768
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/redis /var/log/redis /var/run/redis
+
+# OOM handling
+OOMPolicy=stop
+
+# Timeout
+TimeoutStopSec=30s
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

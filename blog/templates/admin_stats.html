@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Admin Dashboard</h1>
+<div style="display:flex;gap:1rem;flex-wrap:wrap;">
+  <div style="padding:1rem;border:1px solid #ddd;border-radius:6px;min-width:180px;">
+    <strong>Bugungi bronlar</strong>
+    <div style="font-size:1.5rem;margin-top:6px;">{{ todays_bookings }}</div>
+  </div>
+  <div style="padding:1rem;border:1px solid #ddd;border-radius:6px;min-width:180px;">
+    <strong>Bugungi daromad</strong>
+    <div style="font-size:1.5rem;margin-top:6px;">{{ todays_revenue }} so'm</div>
+  </div>
+  <div style="padding:1rem;border:1px solid #ddd;border-radius:6px;min-width:220px;">
+    <strong>Eng mashhur maydon</strong>
+    <div style="font-size:1rem;margin-top:6px;">{{ popular_field|default:'—' }}</div>
+    <div style="color:#666;font-size:0.9rem;">Bookings: {{ popular_count }}</div>
+  </div>
+  <div style="padding:1rem;border:1px solid #ddd;border-radius:6px;min-width:180px;">
+    <strong>Aktiv userlar (login today)</strong>
+    <div style="font-size:1.2rem;margin-top:6px;">{{ active_users_login }}</div>
+  </div>
+  <div style="padding:1rem;border:1px solid #ddd;border-radius:6px;min-width:220px;">
+    <strong>Aktiv userlar (booked today)</strong>
+    <div style="font-size:1.2rem;margin-top:6px;">{{ active_users_booked }}</div>
+  </div>
+  <div style="padding:1rem;border:1px solid #ddd;border-radius:6px;min-width:180px;">
+    <strong>To'lovlar soni (bugun)</strong>
+    <div style="font-size:1.5rem;margin-top:6px;">{{ payments_count }}</div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = `${wsScheme}://${window.location.host}/ws/notify/`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.addEventListener('open', () => console.log('Admin websocket connected:', wsUrl));
+
+    socket.addEventListener('message', async (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (!payload || !payload.event) return;
+
+        if (['support_message', 'booking_updated', 'ticket_config_updated'].includes(payload.event)) {
+          // simple full-page refresh to show the latest admin dashboard state
+          // could be optimized to partial updates instead of full reload.
+          window.location.reload();
+        }
+      } catch (err) {
+        console.error('Admin websocket parse error:', err);
+      }
+    });
+
+    socket.addEventListener('close', () => {
+      console.warn('Admin websocket closed, reconnecting in 2s');
+      setTimeout(() => window.location.reload(), 2000);
+    });
+
+    socket.addEventListener('error', (err) => {
+      console.error('Admin websocket error:', err);
+    });
+  })();
+</script>
+
+{% endblock %}

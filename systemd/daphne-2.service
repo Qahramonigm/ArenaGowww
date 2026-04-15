@@ -1,0 +1,52 @@
+# Production systemd service file for Daphne ASGI server (Instance 2)
+# Install to: /etc/systemd/system/daphne-2.service
+# Enable: sudo systemctl enable daphne-2
+# Start: sudo systemctl start daphne-2
+
+[Unit]
+Description=ArenaGo Daphne ASGI Server (Instance 2)
+After=network.target redis.service postgresql.service
+Wants=network.target redis.service postgresql.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/arenago/blog
+
+EnvironmentFile=/opt/arenago/.env.prod
+Environment="DJANGO_SETTINGS_MODULE=blog.settings_prod"
+
+# Instance 2 runs on port 8002
+ExecStart=/opt/arenago/venv/bin/daphne \
+    -b 0.0.0.0 \
+    -p 8002 \
+    -t 300 \
+    --verbosity 2 \
+    --log-format "%(asctime)s [%(levelname)s] %(message)s" \
+    blog.asgi:application
+
+Restart=on-failure
+RestartSec=10s
+StartLimitInterval=60s
+StartLimitBurst=3
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=daphne-2
+
+LimitNOFILE=65536
+LimitNPROC=32768
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/arenago /var/log/arenago /var/tmp/arenago
+
+TimeoutStopSec=30s
+KillMode=mixed
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target
